@@ -1,0 +1,505 @@
+#include "ins_eth_ocm.h"
+/**
+ * Function for obtaining MAC address.
+ * @param name Name of this MAC
+ * @param net  NET interface (Interniche typedef)
+ * @param mac_addr Character array into which MAC address should be written.
+ *
+ * @return zero on success, nonzero otherwise.
+ */ 
+extern int get_mac_addr(char name[], NET net, unsigned char mac_addr[6]);
+
+/**
+ * Determine whether PHY is full duplex or not.
+ * This is fully vendor specific depending on the PHY you are using.
+ * For this reason, this function is declared as external (so you can
+ * write your own).
+ * 
+ * @param  pmac MAC register map.
+ * @return 0x11 if Gigabit link is established and full duplex,
+ *         0x01 if not Gigabit link is established and full duplex, 
+ *         0x00 if not Gigabit link is established and half duplex, * If the link speed cannot be determined, it is fall back to 10/100.
+ */
+extern int getPHYSpeed(eth_ocm_dev *dev);
+
+
+static void eth_ocm_rx_isr(void *context, alt_u32 id);
+static int eth_ocm_read_init(eth_ocm_dev *dev);
+static int eth_ocm_rcv(eth_ocm_dev *dev);
+
+/**
+ * Prepare ethernet MAC.
+ *
+ * @param ins_dev   Pointer to associated alt_iniche_dev struct
+ * @return
+ */
+error_t eth_ocm_prep(alt_iniche_dev *ins_dev){
+    NET ifp;
+    int index;
+    eth_ocm_dev *dev;
+
+    index = ins_dev->if_num;
+    dev = (eth_ocm_dev *)ins_dev;
+
+    //Status message
+    dprintf("eth_ocm_prep\n");
+
+    //create eth_ocm_info struct
+    dev->info = (eth_ocm_info *)malloc(sizeof(eth_ocm_info));
+    dev->info->sem = 0; //initialize semaphore
+
+    ifp = nets[index];
+    ifp->n_mib->ifAdminStatus = ETH_OCM_STATUS_DOWN;    
+    ifp->n_mib->ifOperStatus =  ETH_OCM_STATUS_DOWN;
+    ifp->n_mib->ifLastChange =  cticks * (100/TPS);     //timestamp
+    ifp->n_mib->ifPhysAddress = (u_char*)dev->info->mac_addr;
+    ifp->n_mib->ifDescr =       (u_char*)"Opencores 10/100 ethernet MAC";
+    ifp->n_lnh =                ETHHDR_SIZE;            /* ethernet header size. */
+    ifp->n_hal =                ETH_OCM_MAC_ADDR_LEN;   /* MAC address length */
+    ifp->n_mib->ifType =        ETHERNET;               /* device type */
+    ifp->n_mtu =                ETH_OCM_MAX_MTU;        /* max frame size */
+
+    /* install our hardware driver routines */
+    ifp->n_init =       eth_ocm_init;
+    ifp->pkt_send =     NULL;
+    ifp->raw_send =     eth_ocm_raw_send;
+    ifp->n_close =      eth_ocm_close;
+    ifp->n_stats =      eth_ocm_stats;
+
+#ifdef IP_V6
+      ifp->n_flags |= (NF_NBPROT | NF_IPV6);
+#else
+      ifp->n_flags |= NF_NBPROT;
+#endif
+
+    /* get the MAC address. */
+    get_mac_addr(dev->name, ifp, dev->info->mac_addr);
+
+    /* set cross-pointers between iface and eth_ocm structs */
+    dev->info->netp = ifp;
+    ifp->n_local = (void*)(dev);
+
+    index++;
+    return index;
+}
+//End of function eth_ocm_prep
+
+/**
+ * Initializes the Opencores ethernet MAC. Called by InterNiche stack
+ *
+ * @param 
+ */
+int eth_ocm_init(int iface){
+    int status = SUCCESS;
+    int duplex;
+    int temp;
+    NET ifp;
+    eth_ocm_dev *dev;
+    eth_ocm_info *info;
+
+    dprintf("[eth_ocm_init]\n");
+    //get the ifp first
+    ifp = nets[iface];
+    //now get the info pointer
+    dev = (eth_ocm_dev *)ifp->n_local;
+    info = dev->info;
+
+    // reset the mac (this is self clearing)
+    IOWR_ETH_OCM_SW_RESET(dev->base);
+
+    //Reset Descriptors (supposedly this can be done while in reset)
+    for(temp=ETH_OCM_DESC_START;temp<ETH_OCM_DESC_END;temp++)
+        IOWR(dev->base, temp, 0);
+
+    //Let's disable the MAC until everything else is set up
+    IOWR_ETH_OCM_MODER(dev->base,0);     
+    //Set number of TX descriptors (RX descriptors is 128 minus this number)
+    IOWR_ETH_OCM_TX_BD_NUM(dev->base, 64);
+
+    /* perform any necessary PHY setup */
+    //Let's set the MDIO interface up to run at 4MHz.
+    temp = (ALT_CPU_FREQ / 1000000);
+    temp += 2;
+    temp &= 0xFFFFFFFE;   //only even numbers allowed)
+    IOWR_ETH_OCM_MIIMODER(dev->base, temp);
+    IOWR_ETH_OCM_MIICOMMAND(dev->base, 0);
+    //Find out if we should run in duplex or not
+    duplex = getPHYSpeed(dev);
+
+    if(duplex)
+        duplex = ETH_OCM_MODER_FULLD_MSK;
+
+    // Configure MAC options
+    // Interrupt sources
+    IOWR_ETH_OCM_INT_MASK(dev->base, 
+            ETH_OCM_DEFAULT_INTERRUPT_MASK);//Interrupt on receive
+    // Clear any existing interrupts
+    IOWR_ETH_OCM_INT_SOURCE(dev->base, 0xFFFFFFFF);
+
+    // Inter-packet gap 
+    if(duplex)
+        IOWR_ETH_OCM_IPGT(dev->base, ETH_OCM_FULL_DUPLEX_IPGT); 
+    else
+        IOWR_ETH_OCM_IPGT(dev->base, ETH_OCM_HALF_DUPLEX_IPGT);
+
+    //Let's set the defaults just because they've bitten us before
+    IOWR_ETH_OCM_IPGR1(dev->base, 0x0000000C);
+    IOWR_ETH_OCM_IPGR2(dev->base, 0x00000012);
+    IOWR_ETH_OCM_PACKETLEN(dev->base, 0x00400600);  //Min and Max frame sizes
+    IOWR_ETH_OCM_COLLCONF(dev->base, 0x000F003F);
+    IOWR_ETH_OCM_CTRLMODER(dev->base, 0x00000000);
+
+    dprintf("[eth_ocm_init] Configuring MAC address "
+            "%02x:%02x:%02x:%02x:%02x:%02x\n",
+            info->mac_addr[0],info->mac_addr[1],info->mac_addr[2],
+            info->mac_addr[3],info->mac_addr[4],info->mac_addr[5]);
+    //Configure the MAC address
+    IOWR_ETH_OCM_MAC_ADDR0(dev->base,
+            ( ((int)info->mac_addr[5])         |
+             (((int)info->mac_addr[4]) << 8)   |
+             (((int)info->mac_addr[3]) << 16)  |
+             (((int)info->mac_addr[2]) << 24)  )
+            );
+
+    IOWR_ETH_OCM_MAC_ADDR1(dev->base,
+            ( ((int)((unsigned char)info->mac_addr[1]))         |
+             (((int)((unsigned char)info->mac_addr[0])) << 8)   )
+            );
+
+
+    //Enable MAC
+    IOWR_ETH_OCM_MODER(dev->base,
+           ETH_OCM_MODER_PAD_MSK    |   //Enable padding of small packets
+           ETH_OCM_MODER_CRCEN_MSK  |   //Append CRC to TX packets
+           ETH_OCM_MODER_RXEN_MSK   |   //Enable receive
+           ETH_OCM_MODER_TXEN_MSK   |   //Enable transmit
+           duplex                       //Discovered duplex
+           );
+
+    dprintf("\nOpencores MAC post-init: MODER = 0x%08x\n",
+            IORD_ETH_OCM_MODER(dev->base));
+
+
+   /* status = UP */
+   nets[iface]->n_mib->ifAdminStatus = ETH_OCM_STATUS_UP;
+   nets[iface]->n_mib->ifOperStatus = ETH_OCM_STATUS_UP;
+
+   //register ISR interrupt handler
+   temp = alt_irq_register(dev->irq, dev, eth_ocm_rx_isr);
+   if(temp)
+       dprintf("[eth_ocm_init] Failed to register RX ISR\n");
+   //Setup the first read transfer
+   eth_ocm_read_init(dev);
+
+   return status;   //MAC is ready to rock and roll
+}
+//End of eth_ocm_init function
+
+
+/**
+ *  Raw send function to initiate a transfer to the mac 
+ *
+ * @param  net  - NET structure associated with the Opencores MAC instance
+ * @param  data - pointer to the data payload
+ G
+ * @return SUCCESS if success, else a negative value
+ */
+int eth_ocm_raw_send(NET net, char * data, unsigned data_bytes){
+    int result;
+    int i;
+    unsigned len;
+    eth_ocm_dev *dev;
+    eth_ocm_info *info;
+    alt_u8 *buf;
+
+    OS_ENTER_CRITICAL(); //disable interrupts
+
+    dev = (eth_ocm_dev *)net->n_local;
+    info = dev->info;
+    len = data_bytes;
+    result = 0;
+
+    //Check to see if someone is nesting send calls (BAD!)
+    if(info->sem){
+       dprintf("Nested eth_ocm_raw_send\n");
+       OS_EXIT_CRITICAL();
+       return ENP_RESOURCE;
+    }
+
+    //Grab the semaphore
+    info->sem = 1;
+    // clear bit-31 before passing it to SGDMA Driver
+    buf = (alt_u8 *)alt_remap_cached( (volatile void *)data, 4);
+    //advance the pointer beyond the header bias
+    buf = (alt_u8 *)((unsigned int)buf + ETHHDR_BIAS);
+
+    //Some error checks first
+    if(len < ETH_OCM_MIN_MTU)
+        result = -1;        //packet too small
+    if(len > ETH_OCM_MAX_MTU)
+        result = -EFBIG;    //packet too big
+    if((IORD_ETH_OCM_DESC_CTRL(dev->base, ETH_OCM_FIRST_TX_DESC) & ETH_OCM_TXDESC_READY_MSK))
+        result = -EBUSY;    //DMA not available
+
+    if(!result){
+        //Write pointer to descriptor
+        IOWR_ETH_OCM_DESC_PTR(dev->base, ETH_OCM_FIRST_TX_DESC, (unsigned int)buf);
+        //Write length and setup transfer
+        IOWR_ETH_OCM_DESC_CTRL(dev->base, ETH_OCM_FIRST_TX_DESC,
+                ((len << ETH_OCM_TXDESC_LEN_OFST)    |
+                 ETH_OCM_TXDESC_READY_MSK            |
+                 ETH_OCM_TXDESC_WRAP_MSK             |
+                 ETH_OCM_TXDESC_PAD_MSK              |
+                 ETH_OCM_TXDESC_CRC_MSK)
+                 );
+        //Wait for transfer to complete
+        i=0;
+        do{
+            result = IORD_ETH_OCM_DESC_CTRL(dev->base, ETH_OCM_FIRST_TX_DESC);
+            i++;
+        }while((result & ETH_OCM_TXDESC_READY_MSK) && i<ETH_OCM_TRANSMIT_TIMEOUT);
+        //Make sure no timeout occurred
+        if(i<ETH_OCM_TRANSMIT_TIMEOUT){
+            //TODO Add case for retry
+            if(result &
+                    (ETH_OCM_TXDESC_UR_MSK      |
+                    ETH_OCM_TXDESC_RL_MSK       |
+                    ETH_OCM_TXDESC_LC_MSK       |
+                    ETH_OCM_TXDESC_CS_MSK)){
+
+                dprintf("[eth_ocm_raw_send] Transmit error 0x%x\n", result);
+                result = -EIO;  //Some error occured
+            } 
+            else
+                result = 0;
+        } 
+        else{   //Timeout
+            result = -ETIMEDOUT;
+        }
+    }   //End of if(!result) Transmit branch
+
+    //Check final result
+    if(!result){    //Successfull transfer
+       net->n_mib->ifOutOctets += data_bytes;   //Increment TX data counter
+       // we dont know whether it was unicast or not, we count both in <ifOutUcastPkts>
+       net->n_mib->ifOutUcastPkts++;
+       result = SUCCESS;
+    }
+    else{   //Failed transfer
+        dprintf("[eth_ocm_raw_send] Transmit failed, "
+                "ret=%d, len=%d\n",
+                result,
+                len);
+
+       net->n_mib->ifOutDiscards++; //increment TX discard counter
+       result = SEND_DROPPED;   // ENP_RESOURCE and SEND_DROPPED have the same value! 
+    }
+    
+    info->sem = 0;              //release semaphore
+    OS_EXIT_CRITICAL();         //reenable interrupts
+    return result;              //success 
+}
+//End of function eth_ocm_raw_send
+
+
+/**
+ * Receive ISR (interrupt service routine)
+ *
+ * @param  context  - context of the Opencores MAC instance
+ * @param  id       - IRQ number 
+ */
+void eth_ocm_rx_isr(void *context, alt_u32 id){
+    eth_ocm_dev *dev;
+    int result;
+    dev = (eth_ocm_dev *)context;
+
+    //Check to see whether the interrupt was a successfull transfer or not
+    result = IORD_ETH_OCM_INT_SOURCE(dev->base);
+    IOWR_ETH_OCM_INT_SOURCE(dev->base, 0x7F);  //clear interrupts
+    //Call the receive function. This will set up a new transfer
+    eth_ocm_rcv(dev);
+
+    //Check to see if there is something in the stack's received queue
+    if ((rcvdq.q_len) > 0){
+        SignalPktDemux();        
+    }
+}
+
+
+/**
+ *  Set up the first receive transfer
+ */
+static int eth_ocm_read_init(eth_ocm_dev *dev){
+    eth_ocm_info *info;
+    alt_u8 *uncached_packet_payload;
+    PACKET *pkt_array;
+    int result;
+    int i;
+
+    info = dev->info;
+    pkt_array = info->pkt_array;
+    pkt_array[0] = pk_alloc(ETH_OCM_BUF_ALLOC_SIZE);
+    result = 0;
+
+    if (!pkt_array[0]){  // couldn't get a free buffer for rx 
+      dprintf("[eth_ocm_read_init] Fatal error: No free packet buffers for RX\n");
+      return ENP_NOBUFFER;
+    }
+
+    // ensure bit-31 of pkt_array[i]->nb_buff is clear before passing
+    uncached_packet_payload = (alt_u8*)alt_remap_cached ((volatile void*) pkt_array[0]->nb_buff, 4);
+    uncached_packet_payload = (alt_u8*)(((unsigned int)uncached_packet_payload) + ETHHDR_BIAS);
+
+    if(!(IORD_ETH_OCM_DESC_CTRL(dev->base, ETH_OCM_FIRST_RX_DESC) & ETH_OCM_RXDESC_EMPTY_MSK)){
+        //Write pointer
+        IOWR_ETH_OCM_DESC_PTR(dev->base, 
+                ETH_OCM_FIRST_RX_DESC,
+                uncached_packet_payload); 
+        //Write the control register to start the transfer
+        IOWR_ETH_OCM_DESC_CTRL(dev->base, ETH_OCM_FIRST_RX_DESC,
+               (ETH_OCM_RXDESC_EMPTY_MSK |
+                ETH_OCM_RXDESC_IRQ_MSK   |
+                ETH_OCM_RXDESC_WRAP_MSK)
+               ); 
+    }
+    else
+        result = -EBUSY;
+
+    if(!result)
+        result = SUCCESS;
+    else
+        dprintf("[eth_ocm_read_init] Fatal error: Unable to set up initial RX\n");
+
+    return result;
+}
+//End of function eth_ocm_read_init
+
+
+/**
+ * Receive operation. Checks the status of the received frame.
+ * Attempt to obtain a new buffer from the InterNiche stack.
+ * Schedules another RX transfer
+ *
+ * @return SUCCESS on success
+ */
+static int eth_ocm_rcv(eth_ocm_dev *dev)
+{
+    eth_ocm_info *info;
+    struct ethhdr *eth;
+    int pklen;
+    int stat;
+    int i;
+
+    PACKET pkt;
+    PACKET *pkt_array;
+    alt_u8 *uncached_packet_payload;
+
+    info = dev->info;
+    pkt_array = info->pkt_array;
+    stat = IORD_ETH_OCM_DESC_CTRL(dev->base, ETH_OCM_FIRST_RX_DESC);
+    pklen = stat & ETH_OCM_RXDESC_LEN_MSK;
+    pklen = pklen >> ETH_OCM_RXDESC_LEN_OFST;
+
+    //Increment received byte count
+    info->netp->n_mib->ifInOctets += (u_long)pklen;
+
+    pkt_array[0]->nb_prot = pkt_array[0]->nb_buff + ETHHDR_SIZE;
+    pkt_array[0]->nb_plen = pklen - (14 + 4); //Packet length minus (header + CRC)
+    //TODO See if MAC appends CRC
+    pkt_array[0]->nb_tstamp = cticks;
+    pkt_array[0]->net = info->netp;
+
+    
+    // set packet type for demux routine
+    eth = (struct ethhdr *)(pkt_array[0]->nb_buff + ETHHDR_BIAS);
+    pkt_array[0]->type = eth->e_type;
+
+    if (!(stat & ETH_OCM_RXDESC_ERROR_MSK)){
+        pkt = pk_alloc(ETH_OCM_BUF_ALLOC_SIZE);
+        if (!pkt){  // couldn't get a free buffer for rx 
+          dprintf("No free buffers for rx\n");
+          info->netp->n_mib->ifInDiscards++;
+        }
+        else{
+          putq(&rcvdq, pkt_array[0]);
+          pkt_array[0] = pkt;
+        }
+    }
+    else{
+        dprintf("[eth_ocm_rcv] Frame discarded due to errors!\n");
+        info->netp->n_mib->ifInDiscards++;
+    }
+
+    // ensure bit-31 of pkt_array[]->nb_buff is clear before passing
+    // to DMA Driver
+    uncached_packet_payload = (alt_u8*)alt_remap_cached ((volatile void*) pkt_array[0]->nb_buff, 4);
+    uncached_packet_payload = (alt_u8*)((unsigned int)uncached_packet_payload + ETHHDR_BIAS);
+
+    if(!(IORD_ETH_OCM_DESC_CTRL(dev->base, ETH_OCM_FIRST_RX_DESC) & ETH_OCM_RXDESC_EMPTY_MSK)){
+        //Write pointer
+        IOWR_ETH_OCM_DESC_PTR(dev->base, 
+                ETH_OCM_FIRST_RX_DESC,
+                (unsigned int)uncached_packet_payload); 
+        //Write the control register to start the transfer
+        IOWR_ETH_OCM_DESC_CTRL(dev->base, ETH_OCM_FIRST_RX_DESC,
+               (ETH_OCM_RXDESC_EMPTY_MSK |
+                ETH_OCM_RXDESC_IRQ_MSK   |
+                ETH_OCM_RXDESC_WRAP_MSK)
+               ); 
+    }
+    else
+        stat = -EBUSY;
+            
+    return SUCCESS;
+}
+
+
+
+void eth_ocm_stats(void *pio, int iface) {
+    NET ifp;
+    eth_ocm_dev *dev;
+
+    //get the ifp first
+    ifp = nets[iface];
+    dev = (eth_ocm_dev *)ifp->n_local;
+    ns_printf(pio, "eth_ocm_stats(), stats will be added later!\n");
+}
+
+/**
+ * Closes the opencores mac interface
+ *
+ * @param  iface    index of the NET interface associated with the Opencores MAC.
+ * @return SUCCESS
+ */
+
+int eth_ocm_close(int iface)
+{
+  int err;
+  NET ifp;
+  eth_ocm_dev *dev;
+
+  /* status = down */
+  ifp = nets[iface];
+  dev = (eth_ocm_dev *)ifp->n_local;
+
+  ifp->n_mib->ifAdminStatus = ETH_OCM_STATUS_DOWN;
+
+  /* disable the interrupt in the OS*/
+  err = alt_irq_register (dev->irq, 0, NULL);
+  if (err){
+    dprintf("[eth_ocm_close]Could not unregister interrupt, error = %d\n",err);
+    return err;
+  }
+
+  // Shut down the MAC
+  IOWR_ETH_OCM_MODER(dev->base, 0);
+
+  /* status = down */
+  ifp->n_mib->ifOperStatus = ETH_OCM_STATUS_DOWN;
+  //deallocate memory for the eth_ocm_info struct allocated in eth_ocm_prep
+  free(dev->info);
+
+  return SUCCESS;
+}
+
+//End of file ins_eth_ocm.h

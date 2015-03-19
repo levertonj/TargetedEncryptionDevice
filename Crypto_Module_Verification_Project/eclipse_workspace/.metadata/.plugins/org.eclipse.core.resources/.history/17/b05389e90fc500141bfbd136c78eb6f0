@@ -1,0 +1,127 @@
+/*
+ * "Hello World" example.
+ *
+ * This example prints 'Hello from Nios II' to the STDOUT stream. It runs on
+ * the Nios II 'standard', 'full_featured', 'fast', and 'low_cost' example
+ * designs. It runs with or without the MicroC/OS-II RTOS and requires a STDOUT
+ * device in your system's hardware.
+ * The memory footprint of this hosted application is ~69 kbytes by default
+ * using the standard reference design.
+ *
+ * For a reduced footprint version of this template, and an explanation of how
+ * to reduce the memory footprint for a given application, see the
+ * "small_hello_world" template.
+ *
+ */
+
+#include <stdio.h>
+#include "system.h"
+
+#define VAL_1X			1
+#define VAL_2X			VAL_1X, VAL_1X
+#define VAL_4X			VAL_2X, VAL_2X
+#define VAL_8X			VAL_4X, VAL_4X
+#define VAL_16X			VAL_8X, VAL_8X
+#define VAL_32X			VAL_16X, VAL_16X
+#define VAL_64X			VAL_32X, VAL_32X
+#define VAL_128X		VAL_64X, VAL_64X
+#define VAL_256X		VAL_128X, VAL_128X
+#define VAL_512X		VAL_256X, VAL_256X
+#define VAL_1024X		VAL_512X, VAL_512X
+#define VAL_2048X		VAL_1024X, VAL_1024X
+
+#define ENCRYPT 1
+#define DECRYPT 3
+
+struct crypto_t{
+	unsigned int control;
+	unsigned int status;
+	unsigned int readStart;
+	unsigned int writeStart;
+	unsigned int transferLength;
+	unsigned int injectionVector;
+	unsigned int key8key16;
+	unsigned int key32;
+};
+
+int main()
+{
+
+  int x;
+  unsigned int Status;
+
+  volatile struct crypto_t * Crypto = (volatile struct crypto_t *)CRYPTO_MODULE_BASE;
+  char * testFrom = (char*)0xc000;//"Make room for the trophy";
+  char * testInt = (char*)0xd000;//"11111111";
+  char * testTo = (char*)0xe000;//"11111111";
+
+  char phrase[] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque tincidunt imperdiet arcu, nec ultricies orci blandit ac. Nullam sagittis, enim ut euismod dignissim, \
+lacus ligula aliquam risus, non viverra neque diam ut ipsum. Cras lobortis nulla diam, quis efficitur velit cursus eget. Mauris vel convallis dui. Aliquam sodales ornare scelerisque. \
+Aliquam ornare, ante ac vehicula mattis, lacus mauris scelerisque mi, in faucibus lorem mauris non augue. Maecenas suscipit ipsum eu sem tincidunt molestie. In porta, mi id ullamcorper \
+elementum, libero nulla luctus nunc, quis bibendum nisl lacus sed erat. Quisque sit amet ornare turpis. Aliquam erat volutpat. Donec tempus vulputate semper. Maecenas lacus nisi, congue \
+nec posuere sit amet, hendrerit et dolor. Etiam vulputate risus quis magna suscipit, et luctus sem dictum. Morbi efficitur convallis metus a tempus. Integer placerat vel urna id bibendum. \
+Praesent dapibus in odio ac sollicitudin. Donec porta fermentum dictum. Integer luctus ipsum at purus viverra fusceLorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque tincidunt \
+imperdiet arcu, nec ultricies orci blandit ac. Nullam sagittis, enim ut euismod dignissim, \
+lacus ligula aliquam risus, non viverra neque diam ut ipsum. Cras lobortis nulla diam, quis efficitur velit cursus eget. Mauris vel convallis dui. Aliquam sodales ornare scelerisque. \
+Aliquam ornare, ante ac vehicula mattis, lacus mauris scelerisque mi, in faucibus lorem mauris non augue. Maecenas suscipit ipsum eu sem tincidunt molestie. In porta, mi id ullamcorper \
+elementum, libero nulla luctus nunc, quis bibendum nisl lacus sed erat. Quisque sit amet ornare turpis. Aliquam erat volutpat. Donec tempus vulputate semper. Maecenas lacus nisi, congue \
+nec posuere sit amet, hendrerit et dolor. Etiam vulputate risus quis magna suscipit, et luctus sem dictum. Morbi efficitur convallis metus a tempus. Integer placerat vel urna id bibendum. \
+Praesent dapibus in odio ac sollicitudin. Donec porta fermentum dictum. Integer luctus ipsum at purus viverra BLAKE";
+
+  x = 600;
+  memcpy(testFrom, phrase, sizeof(phrase));
+
+  printf("Addr F = 0x%x\n", (unsigned int) &testFrom[0]);
+  printf("Addr I = 0x%x\n", &testInt[0]);
+  printf("Addr T = 0x%x\n", &testTo[0]);
+
+  Crypto->readStart = &testFrom[0];
+  printf("readStart = ? 0x%08x\n", Crypto->readStart);
+  Crypto->writeStart = &testInt[0];
+  printf("writeStart = ? 0x%08x\n", Crypto->writeStart);
+  Crypto->transferLength = x;
+  printf("transferLength = 2048? %d\n", Crypto->transferLength);
+  Crypto->injectionVector = 0xdeadbeef;
+  printf("injectionVector = 0x%08x\n", Crypto->injectionVector);
+  Crypto->key8key16 = 0x00a6beef;
+  printf("key8key16 = 0x%08x\n", Crypto->key8key16);
+  Crypto->key32 = 0x1245678;
+  printf("key32 = 0x%08x\n", Crypto->key32);
+  Crypto->control = ENCRYPT;
+
+  printf("Status = 0x%08x\n", Crypto->status);
+  while((Crypto->status & 0x1) == 1){
+	  printf("Status = 0x%08x\n", Crypto->status);
+  }
+  printf("Status = 0x%08x\n", Crypto->status);
+
+//  printf("Encryption done!\n");
+  Crypto->readStart = &testInt[0];
+  Crypto->writeStart = &testTo[0];
+  Crypto->control = DECRYPT;
+//
+//  printf("Status = %x", Crypto->status);
+  while((Crypto->status & 0x1) == 1){}
+//
+//  printf("\nDone Crypto!\n\n");
+//
+//  printf("Original: ");
+//  for (i = 0; i < x; i++){
+//	printf("%c", testFrom[i]);
+//  }
+//  printf("\n");
+//
+//  printf("Intermediate: ");
+//  for (i = 0; i < x; i++){
+//	printf("%c", testInt[i]);
+//  }
+//  printf("\n");
+
+//  printf("Decrypted: ");
+//  for (i = 0; i < x; i++){
+//	printf("%c", testTo[i]);
+//  }
+//  printf("\n");
+
+  return 0;
+}

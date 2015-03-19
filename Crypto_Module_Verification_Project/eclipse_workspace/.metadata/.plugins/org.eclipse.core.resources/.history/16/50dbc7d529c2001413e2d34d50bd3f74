@@ -1,0 +1,67 @@
+/*
+ * "Hello World" example.
+ *
+ * This example prints 'Hello from Nios II' to the STDOUT stream. It runs on
+ * the Nios II 'standard', 'full_featured', 'fast', and 'low_cost' example
+ * designs. It runs with or without the MicroC/OS-II RTOS and requires a STDOUT
+ * device in your system's hardware.
+ * The memory footprint of this hosted application is ~69 kbytes by default
+ * using the standard reference design.
+ *
+ * For a reduced footprint version of this template, and an explanation of how
+ * to reduce the memory footprint for a given application, see the
+ * "small_hello_world" template.
+ *
+ */
+
+#include <stdio.h>
+#include "system.h"
+
+struct crypto_t{
+	unsigned int control;
+	unsigned int status;
+	unsigned int readStart;
+	unsigned int writeStart;
+	unsigned int transferLength;
+	unsigned int injectionVector;
+	unsigned int key8key16;
+	unsigned int key32;
+};
+
+int main()
+{
+  int i;
+  unsigned int testFrom[1024] = {	0x11111111, 0x22222222, 0x33333333, 0x44444444, 0x55555555,
+	  	  	  	  					0x66666666, 0x77777777, 0x66666666, 0x77777777, 0x88888888};
+  unsigned int testTo[1024] = {		0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+		  	  	  	  	  	  	  	0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000};
+
+  volatile struct crypto_t * Crypto = (volatile struct crypto_t *)CRYPTO_MODULE_BASE;
+
+  Crypto->readStart = &testFrom[0] + 2 ;
+  printf("readStart = ? 0x%08x\n", Crypto->readStart);
+  Crypto->writeStart = &testTo[0];
+  printf("writeStart = ? 0x%08x\n", Crypto->writeStart);
+  Crypto->transferLength = 6;
+  printf("transferLength = 6? %d\n", Crypto->transferLength);
+  Crypto->injectionVector = 0xcccccccc;
+  printf("injectionVector = 0xcccccccc? 0x%08x\n", Crypto->injectionVector);
+  Crypto->key8key16 = 0xaaaabbbb;
+  printf("key8key16 = 0x00aabbbb? 0x%08x\n", Crypto->key8key16);
+  Crypto->key32 = 0xcccccccc;
+  printf("key32 = 0xcccccccc? 0x%08x\n", Crypto->key32);
+
+
+
+
+  Crypto->control = 1;
+
+  while (Crypto->status == 1);
+  printf("\nDone Crypto!\n\n");
+  for (i = 0; i < 8; i++){
+	  printf("From[%d]: 0x%08x\tTo[%d] : 0x%08x\n", i, testFrom[i], i, testTo[i]);
+  }
+
+
+  return 0;
+}

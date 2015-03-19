@@ -1,0 +1,9 @@
+13:50:06 **** Build of configuration Nios II for project crypto ****
+make all 
+Info: Building ../crypto_bsp/
+C:/altera/14.1/nios2eds/bin/gnu/H-x86_64-mingw32/bin/make --no-print-directory -C ../crypto_bsp/
+[BSP build complete]
+[crypto build complete]
+
+13:50:07 Build Finished (took 1s.108ms)
+
