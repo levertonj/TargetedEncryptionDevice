@@ -1,9 +1,0 @@
-16:23:06 **** Incremental Build of configuration Nios II for project TEDv3 ****
-make all 
-Info: Building ../TEDv3_bsp/
-C:/altera/14.1/nios2eds/bin/gnu/H-x86_64-mingw32/bin/make --no-print-directory -C ../TEDv3_bsp/
-[BSP build complete]
-[TEDv3 build complete]
-
-16:23:07 Build Finished (took 1s.90ms)
-
