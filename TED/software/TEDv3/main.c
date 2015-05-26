@@ -25,6 +25,7 @@
 #include "circular_fifo.h"
 #include "altera_avalon_sgdma_regs.h"
 #include "altera_avalon_sgdma_descriptor.h"
+#include "Target_Constants.h"
 
 #define	RED_PHY				16
 #define BLACK_PHY			17
@@ -33,11 +34,11 @@
 #define HALT				{printf("[TED.c]\tHalting\n");return 1;}
 #define EBADF 9         /* Bad file number */
 
-#define DEFAULT_KEY8		0x1
-#define DEFAULT_KEY16		0x2
-#define DEFAULT_KEY32		0x3
+#define DEFAULT_KEY8		0x31
+#define DEFAULT_KEY16		0x2486
+#define DEFAULT_KEY32		0xdeadbeef
 
-#define BUFFER_SIZE				1540
+#define BUFFER_SIZE				1520
 #define NUMBER_BUFFERS			24
 
 //#define	DEBUG_I
@@ -78,7 +79,7 @@ volatile HEX_t* HEX             = (volatile HEX_t *) HEX_BASE;
 volatile CRYPTO_t * Encryptor 	= (volatile CRYPTO_t *) TED_ENCRYPTOR_BASE;
 volatile CRYPTO_t * Decryptor 	= (volatile CRYPTO_t *) TED_DECRYPTOR_BASE;
 volatile LED_t * LEDs			= (volatile LED_t *) OUTPUT_PORT_BASE;
-volatile alt_up_character_lcd_dev* LCD;
+alt_up_character_lcd_dev* LCD;
 
 // Create sgdma transmit and receive devices
 alt_sgdma_dev * RedRx;
@@ -160,7 +161,16 @@ Initialize the Linked List
 
 	//Bring up the LCD
 	I printf("[TED.c]\tInitialize LCD\n");
-	if (lcdInit(LCD) != SUCCESS) HALT
+	char* string[20];
+
+	LCD = alt_up_character_lcd_open_dev("/dev/lcd");
+	alt_up_character_lcd_init (LCD);
+	alt_up_character_lcd_cursor_off(LCD);
+	sprintf(string, "%d.%d.%d.%d", IP_SRC_ADDRESS1);
+	alt_up_character_lcd_string(LCD, string);
+	alt_up_character_lcd_set_cursor_pos(LCD, 0, 1);
+	sprintf(string, "%d.%d.%d.%d", IP_DST_ADDRESS1);
+	alt_up_character_lcd_string(LCD, string);
 	LEDs->DATA |= 0x8;
 
 	//Bring up the Red Interface
@@ -335,13 +345,9 @@ Initialize the Linked List
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //	SUPER LOOP BEGINS HERE
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	unsigned int led_count = 0;
 	while (1){
 		//LED Heartbeat!
-		led_count++;
-		if (led_count > 1000){
 			LEDs->DATA ^= 0x100;
-		}
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -483,56 +489,68 @@ Initialize the Linked List
 		packetNumber = 0;
 		for (pos = (&inspectListRed.list)->next, q = pos->next; pos != (&inspectListRed.list); pos = q, q = pos->next){
 			 tmp = list_entry(pos, struct frame_list, list);
-
-			 PrintPacket(tmp->frameStart, tmp->frameLength);
+			 unsigned char packetType;
 			 D printf("Frame Addr: %x\n", tmp->frameStart+2);
-			 if (PacketProcessor_Red_Rx((tmp->frameStart)+2) == 2){
-				 list_move_tail(&(tmp->list), &(availableListRed.list));
-			 } else {
+
+			 D printf("\nRed Interface Packet!\n");
+			 D PrintPacket(tmp->frameStart, tmp->frameLength);
+			 packetType = PacketProcessor_Red_Rx((tmp->frameStart)+2);
+
+			 //ignored packet
+			 if (packetType == 0){
+				 D printf("Ignored packet\n");
 				 list_move_tail(&(tmp->list), &(readyTxListRed.list));
+
+			 //encrypted packet
+			 } else if (packetType == 2){
+				 D printf("Encrypted packet\n");
+				 D PrintPacket(tmp->frameStart, tmp->frameLength);
+				 list_move_tail(&(tmp->list), &(readyTxListRed.list));
+
+			 //admin packet
+			 } else {
+				 D printf("Admin packet\n");
+				 D PrintPacket(tmp->frameStart, tmp->frameLength);
+				 list_move_tail(&(tmp->list), &(availableListRed.list));
 			 }
 		}
 
 		D printf("-----Black\n");
 		for (pos = (&inspectListBlack.list)->next, q = pos->next; pos != (&inspectListBlack.list); pos = q, q = pos->next){
 			 tmp = list_entry(pos, struct frame_list, list);
-
-			 PrintPacket(tmp->frameStart, tmp->frameLength);
+			 unsigned char packetType;
 			 D printf("Frame Addr: %x\n", tmp->frameStart+2);
-			 PacketProcessor_Black_Rx((tmp->frameStart)+2);
-			 list_move_tail(&(tmp->list), &(readyTxListBlack.list));
+
+			 D printf("\nBlack Interface Packet!\n");
+			 D PrintPacket(tmp->frameStart, tmp->frameLength);
+			 packetType = PacketProcessor_Black_Rx((tmp->frameStart)+2);
+
+			 //ignored packet
+			 if (packetType == 0){
+				 D printf("Ignored packet\n");
+				 list_move_tail(&(tmp->list), &(readyTxListBlack.list));
+
+			 //encrypted packet
+			 } else if (packetType == 2){
+				 D printf("Encrypted, now decrypted, packet\n");
+				 D PrintPacket(tmp->frameStart, tmp->frameLength);
+				 list_move_tail(&(tmp->list), &(readyTxListBlack.list));
+			 }
 		}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //	4.	Inspect all controlList*.list frames, adding to the access control data structure, zeroing the frame and then moving
 //				it to the availableList*.list
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		D printf("-----Control List\n");
-		D printf("-------Red\n");
-		for (pos = (&controlListRed.list)->next, q = pos->next; pos != (&controlListRed.list); pos = q, q = pos->next){
-			 tmp = list_entry(pos, struct frame_list, list);
 
-			 list_move_tail(&(tmp->list), &(availableListRed.list));
-		}
+		//removed. Functionality pushed up to #3 for speed.
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //	5.	Inspect the encryptList*.list, encrypting the first frame, waiting for encryptor to finish, then moving the frame to
 //				the readyTxList.list
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		D printf("-----Encrypt List\n");
-		D printf("-------Red\n");
-		for (pos = (&encryptListRed.list)->next, q = pos->next; pos != (&encryptListRed.list); pos = q, q = pos->next){
-			 tmp = list_entry(pos, struct frame_list, list);
 
-			 list_move_tail(&(tmp->list), &(readyTxListBlack.list));
-		}
-
-		D printf("-------Black\n");
-		for (pos = (&encryptListBlack.list)->next, q = pos->next; pos != (&encryptListBlack.list); pos = q, q = pos->next){
-			 tmp = list_entry(pos, struct frame_list, list);
-
-			 list_move_tail(&(tmp->list), &(readyTxListRed.list));
-		}
+		//removed. Functionality pushed up to #3 for speed.
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //	6.	Inspect nodes from readyTxList*.list pump them into the respective tx descriptors, then move nodes to the txList*.list
@@ -653,24 +671,4 @@ Initialize the Linked List
 	return 0;
 }
 
-void PrintPacket(unsigned char * frameStart, uint frameLength){
-	 unsigned char * stringP = frameStart;
-	 int i = 0;
-	 int j = 0;
-	 D printf("\nInspecting packet... Address: 0x%08.8x, Length: %d bytes.\n", frameStart, frameLength);
-	 D printf("             0  1  2  3  4  5  6  7   8  9  a  b  c  d  e  f\n");
-	 D printf("0x%08.8x  ", frameStart + i);
-	 for(i=0; i < frameLength; i++){
 
-		 if (j++ == 8){
-			 j = 0;
-			 D printf(" ");
-		 }
-		 if (i%16 == 0 && i != 0){
-			 D printf("\n0x%08.8x  ", frameStart + i);
-			 j = 1;
-		 }
-		 D printf("%2.2x ", *(stringP + i));
-	 }
-	 D printf("\n");
-}

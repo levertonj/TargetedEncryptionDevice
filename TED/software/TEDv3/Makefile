@@ -154,6 +154,7 @@ C_SRCS += PacketProcessor_Black_Rx.c
 C_SRCS += PacketProcessor_Red_Rx.c
 C_SRCS += TargetList.c
 C_SRCS += circular_fifo.c
+C_SRCS += printpacket.c
 CXX_SRCS :=
 ASM_SRCS :=
 

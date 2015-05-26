@@ -87,11 +87,11 @@ ACDS_VERSION := 14.1
 
 # Quartus Generated JDI File. Required for resolving node instance ID's with 
 # design component names. 
-JDI_FILE := $(ABS_BSP_ROOT_DIR)/../../TEDv3.jdi
+JDI_FILE := $(ABS_BSP_ROOT_DIR)/../../CryptoDev.jdi
 
 # Qsys--generated SOPCINFO file. Required for resolving node instance ID's with 
 # design component names. 
-SOPCINFO_FILE := $(ABS_BSP_ROOT_DIR)/../../TEDv3_architecture.sopcinfo
+SOPCINFO_FILE := $(ABS_BSP_ROOT_DIR)/../../crypto_test.sopcinfo
 
 # Big-Endian operation. 
 # setting BIG_ENDIAN is false
@@ -144,8 +144,8 @@ QSYS := 1
 ELF_PATCH_FLAG += --qsys true
 
 # Design Name 
-# setting SOPC_NAME is TEDv3_architecture
-SOPC_NAME := TEDv3_architecture
+# setting SOPC_NAME is crypto_test
+SOPC_NAME := crypto_test
 
 # SopcBuilder Simulation Enabled 
 # setting SOPC_SIMULATION_ENABLED is false
@@ -157,14 +157,14 @@ SOPC_SYSID_FLAG += --id=305419896
 ELF_PATCH_FLAG  += --id 305419896
 
 # The SOPC System ID Base Address 
-# setting SOPC_SYSID_BASE_ADDRESS is 0x319f0
-SOPC_SYSID_FLAG += --sidp=0x319f0
-ELF_PATCH_FLAG  += --sidp 0x319f0
+# setting SOPC_SYSID_BASE_ADDRESS is 0xd0a0
+SOPC_SYSID_FLAG += --sidp=0xd0a0
+ELF_PATCH_FLAG  += --sidp 0xd0a0
 
 # The SOPC Timestamp 
-# setting SOPC_TIMESTAMP is 1427928872
-SOPC_SYSID_FLAG += --timestamp=1427928872
-ELF_PATCH_FLAG  += --timestamp 1427928872
+# setting SOPC_TIMESTAMP is 1427168442
+SOPC_SYSID_FLAG += --timestamp=1427168442
+ELF_PATCH_FLAG  += --timestamp 1427168442
 
 # Enable JTAG UART driver to recover when host is inactive causing buffer to 
 # full without returning error. Printf will not fail with this recovery. none 
@@ -337,32 +337,30 @@ SOPC_SYSID_FLAG += --accept-bad-sysid
 
 # Slave descriptor of STDERR character-mode device. This setting is used by the 
 # ALT_STDERR family of defines in system.h. none 
-# setting hal.stderr is jtag_uart
-ELF_PATCH_FLAG  += --stderr_dev jtag_uart
+# setting hal.stderr is jtag_uart_0
+ELF_PATCH_FLAG  += --stderr_dev jtag_uart_0
 
 # Slave descriptor of STDIN character-mode device. This setting is used by the 
 # ALT_STDIN family of defines in system.h. none 
-# setting hal.stdin is jtag_uart
-ELF_PATCH_FLAG  += --stdin_dev jtag_uart
+# setting hal.stdin is jtag_uart_0
+ELF_PATCH_FLAG  += --stdin_dev jtag_uart_0
 
 # Slave descriptor of STDOUT character-mode device. This setting is used by the 
 # ALT_STDOUT family of defines in system.h. none 
-# setting hal.stdout is jtag_uart
-ELF_PATCH_FLAG  += --stdout_dev jtag_uart
+# setting hal.stdout is jtag_uart_0
+ELF_PATCH_FLAG  += --stdout_dev jtag_uart_0
 
 
 #------------------------------------------------------------------------------
 #                 SOFTWARE COMPONENT & DRIVER INCLUDE PATHS
 #------------------------------------------------------------------------------
 
-ALT_INCLUDE_DIRS += $(ALT_LIBRARY_ROOT_DIR)/drivers/inc
 ALT_INCLUDE_DIRS += $(ALT_LIBRARY_ROOT_DIR)/HAL/inc
 
 #------------------------------------------------------------------------------
 #        SOFTWARE COMPONENT & DRIVER PRODUCED ALT_CPPFLAGS ADDITIONS
 #------------------------------------------------------------------------------
 
-ALT_CPPFLAGS += -DALTERA_TRIPLE_SPEED_MAC
 ALT_CPPFLAGS += -DALT_SINGLE_THREADED
 
 #END MANAGED

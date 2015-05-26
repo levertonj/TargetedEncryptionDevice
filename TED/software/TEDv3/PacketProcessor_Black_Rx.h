@@ -3,7 +3,7 @@
 
 #include "Header_Template.h"
 
-PacketProcessor_Black_Rx(void * packet);
+unsigned char PacketProcessor_Black_Rx(void * packet);
 int Ipv4PacketBlack(eth_h * eth);
 int IcmpPacketBlack(ip_h * ip);
 

@@ -8,6 +8,9 @@
 #include "Target_Constants.h"
 #include "EncryptCheck.h"
 #include "crypto.h"
+#include "altera_up_avalon_character_lcd.h"
+#include "lcd.h"
+#include "unistd.h"
 
 #ifdef DEBUG_R
 #define R if(1)
@@ -52,9 +55,9 @@ unsigned char PacketProcessor_Red_Rx(void * packet) {
 	int dataLength = 0;
 	unsigned char saltMSB;
 	unsigned char saltLSB;
-	int injectionVector = 0;
 	extern TARGET* headNumber;
 	extern volatile CRYPTO_t * Encryptor;
+	extern volatile alt_up_character_lcd_dev* LCD;
 
 	//opMode = 0,1,2
 	//0 = IP Targeting
@@ -114,10 +117,7 @@ unsigned char PacketProcessor_Red_Rx(void * packet) {
 		udp = (udp_h*) tran;
 		transportHeaderSize = 8;
 	} else if ((*(char*)ip->protocol) == 0x06) {
-		transportHeaderSize = 20;
-		if (tran->tcp_length[0] != 50) {
-			transportHeaderSize += (tran->tcp_length[0] - 50) * (4 / 10);
-		}
+		transportHeaderSize = 4* (tran->tcp_length[0] >> 4);
 	}
 
 	/*
@@ -127,7 +127,7 @@ unsigned char PacketProcessor_Red_Rx(void * packet) {
 	 */
 	dataLength = ((int) (256 * ip->totalLength[0]) + (int) ip->totalLength[1])
 			- (transportHeaderSize + ipHeaderSize);
-
+	//printf("DL: %x\n", (unsigned int) dataLength);
 	packet_pointer += transportHeaderSize;
 
 	/*
@@ -143,7 +143,7 @@ unsigned char PacketProcessor_Red_Rx(void * packet) {
 		headNumber = ProcessAdminPacket(admin, headNumber);
 		return 1;
 	} else {
-		if (Ipv4PacketRed(eth)) {
+		if ((Ipv4PacketRed(eth) == 1) && (dataLength != 0)) {
 			R printf("\tIPV4 found, keep checking\n");
 			if (!IcmpPacketRed(ip)) {
 				encryptFound = 0;
@@ -184,11 +184,8 @@ unsigned char PacketProcessor_Red_Rx(void * packet) {
 					saltMSB = ip->packetID[0];
 					saltLSB = ip->packetID[1];
 
-					injectionVector = (saltMSB << 24) | (saltLSB << 16)
-							| (saltMSB << 8) | saltLSB;
-
 					R printf("\t\tIP ID is 0x%x%x", saltMSB, saltLSB);
-					Encryptor->injectionVector = injectionVector;
+					Encryptor->injectionVector = (saltMSB << 24) | (saltLSB << 16) | (saltMSB << 8) | saltLSB;;
 					R printf(", Encryptor IV is 0x%.8x\n", Encryptor->injectionVector);
 
 					Encryptor->readStart = (unsigned int) packet_pointer;
@@ -200,10 +197,8 @@ unsigned char PacketProcessor_Red_Rx(void * packet) {
 
 					R printf("\t\tStarted encryption");
 					Encryptor->control = ENCRYPT;
-					while(Encryptor->status != 0){
-						R printf(".");
-					}
 					R printf(". DONE!\n");
+					return 2;
 
 				} else {
 					//no encryption -> Forward
@@ -228,7 +223,7 @@ unsigned char PacketProcessor_Red_Rx(void * packet) {
 	 Function: 		AdminPacket
 
 	 Description:	Tests if the received packet is an admin packet.
-
+p
 	 Parameters:		1. ip Struct
 
 	 Returns:		Returns 1 if Admin Packet Detected.
@@ -237,8 +232,9 @@ unsigned char PacketProcessor_Red_Rx(void * packet) {
 	 */
 
 	int AdminPacket(ip_h* ip) {
-		if (ip->ip_dst[0] == 0x0a && ip->ip_dst[1] == 0x0a
-				&& ip->ip_dst[2] == 0x0a && ip->ip_dst[3] == 0x0a) {
+		if ((*(unsigned int*)(ip->ip_dst)) == 0x0a0a0a0a){
+		//if (ip->ip_dst[0] == 0x0a && ip->ip_dst[1] == 0x0a
+		//		&& ip->ip_dst[2] == 0x0a && ip->ip_dst[3] == 0x0a) {
 			return 1;
 		} else {
 			return 0;
@@ -260,9 +256,9 @@ unsigned char PacketProcessor_Red_Rx(void * packet) {
 	 */
 
 	int Ipv4PacketRed(eth_h* eth) {
-		R printf("\tpacket type : 0x%0.2x%0.2x", eth->eth_protocol[0],
-					eth->eth_protocol[1]);
-		if (eth->eth_protocol[0] == 0x08 && eth->eth_protocol[1] == 0x00) {
+		R printf("\tpacket type : 0x%.2x%.2x", eth->eth_protocol[0], eth->eth_protocol[1]);
+		if ((*(unsigned short*)(eth->eth_protocol)) == 0x0008){
+		//if (eth->eth_protocol[0] == 0x08 && eth->eth_protocol[1] == 0x00) {
 			R printf(" is a valid type, keep checking\n");
 			return 1;
 		} else {
@@ -311,26 +307,53 @@ unsigned char PacketProcessor_Red_Rx(void * packet) {
 	 */
 
 	TARGET* ProcessAdminPacket(admin_h* admin, TARGET* headNumber) {
-
-		//encryptor ->key8 = admin->key8
+		extern volatile CRYPTO_t * Encryptor;
+		extern volatile alt_up_character_lcd_dev* LCD;
+		char* string[20];
 		int i;
-		for (i = 0; i < 12; i++) {
-			R printf("Admin Trigger %x", admin->triggers[0 + i]);
-			unsigned char ip_source_target[4] = { admin->triggers[0 + i * 8],
-					admin->triggers[1 + i * 8], admin->triggers[2 + i * 8],
-					admin->triggers[3 + i * 8] };
-			unsigned char ip_destination_target[4] = {
-					admin->triggers[4 + i * 8], admin->triggers[5 + i * 8],
-					admin->triggers[6 + i * 8], admin->triggers[7 + i * 8] };
-			unsigned char port_source_target[2] = { admin->triggers[8 + i * 8],
-					admin->triggers[9 + i * 8] };
-			unsigned char port_destination_target[2] = { admin->triggers[10
-					+ i * 8], admin->triggers[11 + i * 8] };
+		R printf("Admin Trigger: \n");
 
-			headNumber = AddTarget(headNumber, i + 3, ip_source_target,
-					ip_destination_target, port_source_target,
-					port_destination_target);
-		}
+
+		R printf("\tKey8: %x\n", admin->key8[0]);
+		R printf("\tKey16: %x\n", (admin->key16[0] << 8 ) | admin->key16[1]);
+		R printf("\tKey32: %x\n", (admin->key32[0] << 24 ) |(admin->key32[1] << 16 ) | (admin->key32[2] << 8 ) | admin->key32[3]);
+		R printf("\tIpSrc: %x.%x.%x.%x\n", admin->ipsrc1[0], admin->ipsrc1[1], admin->ipsrc1[2],admin->ipsrc1[3]);
+		R printf("\tIpDst: %x.%x.%x.%x\n", admin->ipdst1[0], admin->ipdst1[1], admin->ipdst1[2],admin->ipdst1[3]);
+		R printf("\tPtSrc: %x\n", (admin->srcport1[0] << 8 ) | admin->srcport1[1]);
+		R printf("\tPtDst: %x\n", (admin->dstport1[0] << 8 ) | admin->dstport1[1]);
+
+		headNumber->nextTargetNumber = NULL;
+
+		headNumber = AddTarget(headNumber, 0, admin->ipsrc1,
+				 admin->ipdst1, admin->srcport1,
+				 admin->dstport1);
+		headNumber = AddTarget(headNumber, 1, admin->ipsrc2,
+				 admin->ipdst2, admin->srcport2,
+				 admin->dstport2);
+		headNumber = AddTarget(headNumber, 2, admin->ipsrc3,
+				 admin->ipdst3, admin->srcport3,
+				 admin->dstport3);
+
+
+		R printf("\n");
+		R printf("Old key8key16: 0x%08x\n", (unsigned int)Encryptor->key8key16);
+		Encryptor->key8key16 = (((admin->key8[0]) << 16) | ((admin->key16[1]) << 8) | (admin->key16[0]));
+		R printf("New key8key16: 0x%08x\n", (unsigned int)Encryptor->key8key16);
+		R printf("Old key32: 0x%08x\n", (unsigned int)Encryptor->key32);
+		Encryptor->key32 = (((admin->key32[3]) << 24) | ((admin->key32[2]) << 16) | ((admin->key32[1]) << 8) | ((admin->key32[0])));
+		R printf("New key32: 0x%08x\n", (unsigned int)Encryptor->key32);
+		R printf("LCD: %x",&LCD);
+
+		alt_up_character_lcd_set_cursor_pos(LCD, 0, 0);
+		alt_up_character_lcd_string(LCD, "                ");
+		alt_up_character_lcd_set_cursor_pos(LCD, 0, 0);
+		sprintf(string, "%d.%d.%d.%d", headNumber->nextTargetNumber->srcHost[0], headNumber->nextTargetNumber->srcHost[1], headNumber->nextTargetNumber->srcHost[2], headNumber->nextTargetNumber->srcHost[3]);
+		alt_up_character_lcd_string(LCD, string);
+		alt_up_character_lcd_set_cursor_pos(LCD, 0, 1);
+		alt_up_character_lcd_string(LCD, "                ");
+		alt_up_character_lcd_set_cursor_pos(LCD, 0, 1);
+		sprintf(string, "%d.%d.%d.%d", headNumber->nextTargetNumber->dstHost[0], headNumber->nextTargetNumber->dstHost[1], headNumber->nextTargetNumber->dstHost[2], headNumber->nextTargetNumber->dstHost[3]);
+		alt_up_character_lcd_string(LCD, string);
 
 		return headNumber;
 

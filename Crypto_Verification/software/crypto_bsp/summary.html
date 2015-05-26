@@ -7,7 +7,7 @@
 <td width="20%" bgcolor="#77BBFF">BSP Type:</td><td>hal</td>
 </tr>
 <tr mode="wrap">
-<td width="20%" bgcolor="#77BBFF">SOPC Design File:</td><td>..\..\TEDv3_architecture.sopcinfo</td>
+<td width="20%" bgcolor="#77BBFF">SOPC Design File:</td><td>..\..\crypto_test.sopcinfo</td>
 </tr>
 <tr mode="wrap">
 <td width="20%" bgcolor="#77BBFF">Quartus JDI File:</td><td>default</td>
@@ -19,16 +19,16 @@
 <td width="20%" bgcolor="#77BBFF">BSP Settings File:</td><td>settings.bsp</td>
 </tr>
 <tr mode="wrap">
-<td width="20%" bgcolor="#77BBFF">BSP Version:</td><td>14.1</td>
+<td width="20%" bgcolor="#77BBFF">BSP Version:</td><td>default</td>
 </tr>
 <tr mode="wrap">
-<td width="20%" bgcolor="#77BBFF">BSP Generated On:</td><td>Apr 1, 2015 8:09:18 PM</td>
+<td width="20%" bgcolor="#77BBFF">BSP Generated On:</td><td>Mar 23, 2015 11:46:12 PM</td>
 </tr>
 <tr mode="wrap">
-<td width="20%" bgcolor="#77BBFF">BSP Generated Timestamp:</td><td>1427933358801</td>
+<td width="20%" bgcolor="#77BBFF">BSP Generated Timestamp:</td><td>1427168772957</td>
 </tr>
 <tr mode="wrap">
-<td width="20%" bgcolor="#77BBFF">BSP Generated Location:</td><td>C:\Users\Brash\Dropbox\Final_Project\DE2-115\11_Projects\TEDv3\software\TEDv3_bsp</td>
+<td width="20%" bgcolor="#77BBFF">BSP Generated Location:</td><td>C:\Users\Brash\Dropbox\Final_Project\DE2-115\11_Projects\Crypto\software\crypto_bsp</td>
 </tr>
 </table>
 <br>
@@ -38,67 +38,31 @@
 <th align="left" width="20%">Slave Descriptor</th><th align="left" width="40%">Address Range</th><th align="left" width="20%">Size</th><th align="left" width="20%">Attributes</th>
 </tr>
 <tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>black_to_red_memory</td><td>0x02000000 - 0x0200BB7F</td><td>48000</td><td class="listing">memory</td>
+<td>instruction_memory</td><td>0x00080000 - 0x000B0D3F</td><td>200000</td><td class="listing">memory</td>
 </tr>
 <tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>red_to_black_memory</td><td>0x01000000 - 0x0100BB7F</td><td>48000</td><td class="listing">memory</td>
+<td>jtag_uart_0</td><td>0x0000D0A8 - 0x0000D0AF</td><td>8</td><td class="listing">printable</td>
 </tr>
 <tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>instruction_memory</td><td>0x00100000 - 0x00130D3F</td><td>200000</td><td class="listing">memory</td>
+<td>sysid_qsys_0</td><td>0x0000D0A0 - 0x0000D0A7</td><td>8</td><td class="listing">&nbsp;</td>
 </tr>
 <tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>lcd</td><td>0x00031A04 - 0x00031A05</td><td>2</td><td class="listing">&nbsp;</td>
+<td>crypto_module</td><td>0x0000D080 - 0x0000D09F</td><td>32</td><td class="listing">&nbsp;</td>
 </tr>
 <tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>hex</td><td>0x00031A00 - 0x00031A03</td><td>4</td><td class="listing">&nbsp;</td>
+<td>timer_0</td><td>0x0000D040 - 0x0000D07F</td><td>64</td><td class="listing">timer</td>
 </tr>
 <tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>jtag_uart</td><td>0x000319F8 - 0x000319FF</td><td>8</td><td class="listing">printable</td>
+<td>timestamp_timer</td><td>0x0000D000 - 0x0000D03F</td><td>64</td><td class="listing">timer</td>
 </tr>
 <tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>system_id</td><td>0x000319F0 - 0x000319F7</td><td>8</td><td class="listing">&nbsp;</td>
+<td>incoming_memory</td><td>0x00008000 - 0x0000BFFF</td><td>16384</td><td class="listing">memory</td>
 </tr>
 <tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>lcd_clk</td><td>0x000319E0 - 0x000319EF</td><td>16</td><td class="listing">&nbsp;</td>
+<td>outgoing_memory</td><td>0x00004000 - 0x00007FE3</td><td>16356</td><td class="listing">memory</td>
 </tr>
 <tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>output_port</td><td>0x000319D0 - 0x000319DF</td><td>16</td><td class="listing">&nbsp;</td>
-</tr>
-<tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>input_port</td><td>0x000319C0 - 0x000319CF</td><td>16</td><td class="listing">&nbsp;</td>
-</tr>
-<tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>ted_encryptor</td><td>0x000319A0 - 0x000319BF</td><td>32</td><td class="listing">&nbsp;</td>
-</tr>
-<tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>ted_decryptor</td><td>0x00031980 - 0x0003199F</td><td>32</td><td class="listing">&nbsp;</td>
-</tr>
-<tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>red_rx</td><td>0x00031940 - 0x0003197F</td><td>64</td><td class="listing">&nbsp;</td>
-</tr>
-<tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>red_tx</td><td>0x00031900 - 0x0003193F</td><td>64</td><td class="listing">&nbsp;</td>
-</tr>
-<tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>black_rx</td><td>0x000318C0 - 0x000318FF</td><td>64</td><td class="listing">&nbsp;</td>
-</tr>
-<tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>black_tx</td><td>0x00031880 - 0x000318BF</td><td>64</td><td class="listing">&nbsp;</td>
-</tr>
-<tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>system_timer</td><td>0x00031840 - 0x0003187F</td><td>64</td><td class="listing">timer</td>
-</tr>
-<tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>black_interface</td><td>0x00031400 - 0x000317FF</td><td>1024</td><td class="listing">&nbsp;</td>
-</tr>
-<tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>red_interface</td><td>0x00031000 - 0x000313FF</td><td>1024</td><td class="listing">&nbsp;</td>
-</tr>
-<tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>heap_stack</td><td>0x00028000 - 0x0002E1A7</td><td>25000</td><td class="listing">memory</td>
-</tr>
-<tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>descriptor_mem</td><td>0x00000000 - 0x0000400F</td><td>16400</td><td class="listing">memory</td>
+<td>stack_heap</td><td>0x00000000 - 0x00003FFF</td><td>16384</td><td class="listing">memory</td>
 </tr>
 </table>
 <br>
@@ -129,10 +93,10 @@
 <td>.bss</td><td>instruction_memory</td>
 </tr>
 <tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>.heap</td><td>heap_stack</td>
+<td>.heap</td><td>stack_heap</td>
 </tr>
 <tr mode="wrap" STYLE="display: 'block'; font-family: 'courier'; color: '#000000'; font-weight: '500'; font-size: '14'; margin-top: '10pt'; text-align: 'left'">
-<td>.stack</td><td>heap_stack</td>
+<td>.stack</td><td>stack_heap</td>
 </tr>
 </table>
 <h3>Settings</h3>
@@ -1983,7 +1947,7 @@
 <td width="20%">Default Value:</td><td>none</td>
 </tr>
 <tr>
-<td width="20%">Value:</td><td>jtag_uart</td>
+<td width="20%">Value:</td><td>jtag_uart_0</td>
 </tr>
 <tr>
 <td width="20%">Type:</td><td>UnquotedString</td>
@@ -2010,7 +1974,7 @@
 <td width="20%">Default Value:</td><td>none</td>
 </tr>
 <tr>
-<td width="20%">Value:</td><td>jtag_uart</td>
+<td width="20%">Value:</td><td>jtag_uart_0</td>
 </tr>
 <tr>
 <td width="20%">Type:</td><td>UnquotedString</td>
@@ -2037,7 +2001,7 @@
 <td width="20%">Default Value:</td><td>none</td>
 </tr>
 <tr>
-<td width="20%">Value:</td><td>jtag_uart</td>
+<td width="20%">Value:</td><td>jtag_uart_0</td>
 </tr>
 <tr>
 <td width="20%">Type:</td><td>UnquotedString</td>
@@ -2064,7 +2028,7 @@
 <td width="20%">Default Value:</td><td>none</td>
 </tr>
 <tr>
-<td width="20%">Value:</td><td>system_timer</td>
+<td width="20%">Value:</td><td>timer_0</td>
 </tr>
 <tr>
 <td width="20%">Type:</td><td>UnquotedString</td>
@@ -2091,7 +2055,7 @@
 <td width="20%">Default Value:</td><td>none</td>
 </tr>
 <tr>
-<td width="20%">Value:</td><td>none</td>
+<td width="20%">Value:</td><td>timestamp_timer</td>
 </tr>
 <tr>
 <td width="20%">Type:</td><td>UnquotedString</td>

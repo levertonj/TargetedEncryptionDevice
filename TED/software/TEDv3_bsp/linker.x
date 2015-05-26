@@ -4,7 +4,7 @@
  * Machine generated for CPU 'nios2_qsys_0' in SOPC Builder design 'TEDv3_architecture'
  * SOPC Builder design path: ../../TEDv3_architecture.sopcinfo
  *
- * Generated: Mon Mar 30 18:51:58 EDT 2015
+ * Generated: Mon Mar 30 20:51:18 EDT 2015
  */
 
 /*
@@ -51,11 +51,11 @@
 MEMORY
 {
     descriptor_mem : ORIGIN = 0x0, LENGTH = 16400
-    heap_stack : ORIGIN = 0x28000, LENGTH = 20000
+    heap_stack : ORIGIN = 0x28000, LENGTH = 25000
     reset : ORIGIN = 0x100000, LENGTH = 32
-    instruction_memory : ORIGIN = 0x100020, LENGTH = 179968
-    red_to_black_memory : ORIGIN = 0x1000000, LENGTH = 50000
-    black_to_red_memory : ORIGIN = 0x2000000, LENGTH = 50000
+    instruction_memory : ORIGIN = 0x100020, LENGTH = 199968
+    red_to_black_memory : ORIGIN = 0x1000000, LENGTH = 48000
+    black_to_red_memory : ORIGIN = 0x2000000, LENGTH = 48000
 }
 
 /* Define symbols for each memory base-address */
@@ -443,7 +443,7 @@ SECTIONS
 /*
  * Don't override this, override the __alt_stack_* symbols instead.
  */
-__alt_data_end = 0x2ce20;
+__alt_data_end = 0x2e1a8;
 
 /*
  * The next two symbols define the location of the default stack.  You can
@@ -459,4 +459,4 @@ PROVIDE( __alt_stack_limit   = __alt_stack_base );
  * Override this symbol to put the heap in a different memory.
  */
 PROVIDE( __alt_heap_start    = end );
-PROVIDE( __alt_heap_limit    = 0x2ce20 );
+PROVIDE( __alt_heap_limit    = 0x2e1a8 );

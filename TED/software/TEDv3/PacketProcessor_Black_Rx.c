@@ -16,7 +16,7 @@
 #define B if(0)
 #endif
 
-PacketProcessor_Black_Rx(void * packet) {
+unsigned char PacketProcessor_Black_Rx(void * packet) {
 	 /*
 	-------------------------------------------------------------------------------
 	Variable Declarations
@@ -51,7 +51,7 @@ PacketProcessor_Black_Rx(void * packet) {
 	Get Header Values
 	-------------------------------------------------------------------------------
 	*/
-		void *packet_pointer = &packet;
+		void *packet_pointer = packet;
 
 		 /*
 		-------------------------------------------------------------------------------
@@ -83,10 +83,7 @@ PacketProcessor_Black_Rx(void * packet) {
 			udp = (udp_h*) tran;
 			transportHeaderSize = 8;
 		} else if ((*(char*)ip->protocol) == 0x06) {
-			transportHeaderSize = 20;
-			if (tran->tcp_length[0] != 50) {
-				transportHeaderSize += (tran->tcp_length[0] - 50) * (4 / 10);
-			}
+			transportHeaderSize = 4* (tran->tcp_length[0] >> 4);
 		}
 
 		 /*
@@ -105,7 +102,7 @@ PacketProcessor_Black_Rx(void * packet) {
 	-------------------------------------------------------------------------------
 	*/
 	B printf("\nTesting TED Packet coming through BLACK:\n");
-	if(Ipv4PacketBlack(eth)) {
+	if((Ipv4PacketBlack(eth) == 1) && (dataLength != 0)) {
 		B printf("\tIPV4 found, keep checking\n");
 		if(!IcmpPacketBlack(ip)) {
 			switch(opMode) {
@@ -145,11 +142,11 @@ PacketProcessor_Black_Rx(void * packet) {
 				saltMSB = ip->packetID[0];
 				saltLSB = ip->packetID[1];
 
-				injectionVector = (saltMSB << 24) | (saltLSB << 16)
-						| (saltMSB << 8) | saltLSB;
+				//injectionVector = (saltMSB << 24) | (saltLSB << 16)
+				//		| (saltMSB << 8) | saltLSB;
 
 				B printf("\t\tIP ID is 0x%x%x", saltMSB, saltLSB);
-				Decryptor->injectionVector = injectionVector;
+				Decryptor->injectionVector = (saltMSB << 24) | (saltLSB << 16) | (saltMSB << 8) | saltLSB;
 				B printf(", Decryptor IV is 0x%.8x\n", Decryptor->injectionVector);
 
 				Decryptor->readStart = (unsigned int) packet_pointer;
@@ -161,10 +158,8 @@ PacketProcessor_Black_Rx(void * packet) {
 
 				B printf("\t\tStarted decryption");
 				Decryptor->control = DECRYPT;
-				while(Decryptor->status != 0){
-					B printf(".");
-				}
 				B printf(". DONE!\n");
+				return 2;
 			}
 
 		}//ICMP check
@@ -177,7 +172,7 @@ PacketProcessor_Black_Rx(void * packet) {
 	else {
 		//not ipv4 -> Forward
 	}
-
+	return 0;
 }
 
 
@@ -198,7 +193,8 @@ Returns:		Returns 1 if Admin Packet Detected.
 int Ipv4PacketBlack(eth_h* eth) {
 	B printf("\tpacket type : 0x%0.2x%0.2x", eth->eth_protocol[0],
 				eth->eth_protocol[1]);
-	if (eth->eth_protocol[0] == 0x08 && eth->eth_protocol[1] == 0x00) {
+	if ((*(unsigned short*)(eth->eth_protocol)) == 0x0008){
+	//if (eth->eth_protocol[0] == 0x08 && eth->eth_protocol[1] == 0x00) {
 		B printf(" is a valid type, keep checking\n");
 		return 1;
 	} else {

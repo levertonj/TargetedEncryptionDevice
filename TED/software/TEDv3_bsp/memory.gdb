@@ -3,7 +3,7 @@
 # Machine generated for CPU 'nios2_qsys_0' in SOPC Builder design 'TEDv3_architecture'
 # SOPC Builder design path: ../../TEDv3_architecture.sopcinfo
 #
-# Generated: Mon Mar 30 18:51:58 EDT 2015
+# Generated: Mon Mar 30 20:51:18 EDT 2015
 
 # DO NOT MODIFY THIS FILE
 #
@@ -50,13 +50,13 @@
 memory 0x0 0x4010 cache
 
 # heap_stack
-memory 0x28000 0x2ce20 cache
+memory 0x28000 0x2e1a8 cache
 
 # instruction_memory
-memory 0x100000 0x12bf20 cache
+memory 0x100000 0x130d40 cache
 
 # red_to_black_memory
-memory 0x1000000 0x100c350 cache
+memory 0x1000000 0x100bb80 cache
 
 # black_to_red_memory
-memory 0x2000000 0x200c350 cache
+memory 0x2000000 0x200bb80 cache

@@ -1485,6 +1485,15 @@
  <connection
    kind="avalon"
    version="14.1"
+   start="black_tx.descriptor_read"
+   end="red_to_black_memory.s1">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x01000000" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="14.1"
    start="red_rx.descriptor_write"
    end="descriptor_mem.s1">
   <parameter name="arbitrationPriority" value="1" />
@@ -1521,6 +1530,15 @@
  <connection
    kind="avalon"
    version="14.1"
+   start="black_tx.descriptor_write"
+   end="black_to_red_memory.s1">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x02000000" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="14.1"
    start="nios2_qsys_0.instruction_master"
    end="nios2_qsys_0.jtag_debug_module">
   <parameter name="arbitrationPriority" value="1" />
@@ -1550,7 +1568,7 @@
    version="14.1"
    start="black_tx.m_read"
    end="red_to_black_memory.s1">
-  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="arbitrationPriority" value="2" />
   <parameter name="baseAddress" value="0x01000000" />
   <parameter name="defaultConnection" value="false" />
  </connection>
@@ -1559,7 +1577,7 @@
    version="14.1"
    start="red_tx.m_read"
    end="black_to_red_memory.s1">
-  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="arbitrationPriority" value="2" />
   <parameter name="baseAddress" value="0x02000000" />
   <parameter name="defaultConnection" value="false" />
  </connection>
@@ -1568,7 +1586,7 @@
    version="14.1"
    start="black_rx.m_write"
    end="black_to_red_memory.s1">
-  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="arbitrationPriority" value="4" />
   <parameter name="baseAddress" value="0x02000000" />
   <parameter name="defaultConnection" value="false" />
  </connection>
@@ -1577,7 +1595,7 @@
    version="14.1"
    start="red_rx.m_write"
    end="red_to_black_memory.s1">
-  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="arbitrationPriority" value="4" />
   <parameter name="baseAddress" value="0x01000000" />
   <parameter name="defaultConnection" value="false" />
  </connection>
@@ -1586,7 +1604,7 @@
    version="14.1"
    start="ted_decryptor.read_master"
    end="black_to_red_memory.s1">
-  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="arbitrationPriority" value="7" />
   <parameter name="baseAddress" value="0x02000000" />
   <parameter name="defaultConnection" value="false" />
  </connection>
@@ -1595,7 +1613,7 @@
    version="14.1"
    start="ted_encryptor.read_master"
    end="red_to_black_memory.s1">
-  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="arbitrationPriority" value="7" />
   <parameter name="baseAddress" value="0x01000000" />
   <parameter name="defaultConnection" value="false" />
  </connection>
@@ -1604,7 +1622,7 @@
    version="14.1"
    start="ted_decryptor.write_master"
    end="black_to_red_memory.s1">
-  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="arbitrationPriority" value="8" />
   <parameter name="baseAddress" value="0x02000000" />
   <parameter name="defaultConnection" value="false" />
  </connection>
@@ -1613,7 +1631,7 @@
    version="14.1"
    start="ted_encryptor.write_master"
    end="red_to_black_memory.s1">
-  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="arbitrationPriority" value="8" />
   <parameter name="baseAddress" value="0x01000000" />
   <parameter name="defaultConnection" value="false" />
  </connection>

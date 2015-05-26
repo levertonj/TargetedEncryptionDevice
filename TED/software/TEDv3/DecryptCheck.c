@@ -58,16 +58,19 @@ Returns:		1 = match found
  */
 int IpDecrypt(TARGET* listHead,ip_h* ip) {
 	TARGET* pWalker=listHead;
+	int i;
+	D printf("\Src: %d.%d.%d.%d, ",ip->ip_src[0],ip->ip_src[1],ip->ip_src[2],ip->ip_src[3]);
 
 	while(pWalker != NULL) {
-		if ((ip->ip_src[0] == pWalker->dstHost[0]) && (ip->ip_src[0] == pWalker->dstHost[1]) && (ip->ip_src[0] == pWalker->dstHost[2]) && (ip->ip_src[0] == pWalker->dstHost[3])) {
-			if ((ip->ip_dst[0] == pWalker->srcHost[0]) && (ip->ip_dst[0] == pWalker->srcHost[1]) && (ip->ip_dst[0] == pWalker->srcHost[2]) && (ip->ip_dst[0] == pWalker->srcHost[3])) {
-				return 1;
-			}
+		if ((ip->ip_src[0] == pWalker->dstHost[0]) && (ip->ip_src[1] == pWalker->dstHost[1]) && (ip->ip_src[2] == pWalker->dstHost[2]) && (ip->ip_src[3] == pWalker->dstHost[3])) {
+			D printf("found target!\n");
+			return 1;
 		}
 		pWalker=pWalker->nextTargetNumber;
 	}
+	D printf("no valid target found, forwarding.\n");
 	return 0;
+
 }
 
 /*
